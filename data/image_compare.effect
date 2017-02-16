@@ -1,0 +1,96 @@
+uniform float4x4 ViewProj;
+uniform texture2d image;
+
+uniform int count;
+uniform texture2d image0;
+uniform texture2d image1;
+uniform texture2d image2;
+uniform texture2d image3;
+uniform texture2d image4;
+uniform texture2d image5;
+uniform texture2d image6;
+uniform int debug;
+
+sampler_state textureSampler {
+	Filter    = Linear;
+	AddressU  = Clamp;
+	AddressV  = Clamp;
+};
+
+struct VertData {
+	float4 pos : POSITION;
+	float2 uv  : TEXCOORD0;
+};
+
+VertData VSDefault(VertData v_in)
+{
+	VertData vert_out;
+	vert_out.pos = mul(float4(v_in.pos.xyz, 1.0), ViewProj);
+	vert_out.uv  = v_in.uv;
+	return vert_out;
+}
+
+float compare(float4 rgb1, float4 rgb2)
+{
+	return max(1 - distance(rgb1.rgb, rgb2.rgb) / sqrt(3.0), 0.0);
+}
+
+float4 getPixel(int index, float2 uv) {
+	float4 result;
+	switch (index) {
+	case 0:
+		result = image0.Sample(textureSampler, uv);
+		break;
+	case 1:
+		result = image1.Sample(textureSampler, uv);
+		break;
+	case 2:
+		result = image2.Sample(textureSampler, uv);
+		break;
+	case 3:
+		result = image3.Sample(textureSampler, uv);
+		break;
+	case 4:
+		result = image4.Sample(textureSampler, uv);
+		break;
+	case 5:
+		result = image5.Sample(textureSampler, uv);
+		break;
+	case 6:
+		result = image6.Sample(textureSampler, uv);
+		break;
+	}
+	return result;
+}
+
+float4 PSImageCompare(VertData v_in) : TARGET
+{
+    float4 a = image.Sample(textureSampler, v_in.uv);
+
+    if (debug >= 0) {
+        float4 b = getPixel(debug, v_in.uv);
+        if (compare(a, b) >= b.a) {
+            return float4(1, 1, 1, 1);
+        } else {
+            return float4(0, 0, 0, 1);
+        }
+    } else {
+        int output = 0;
+        for (int i = 0; i < count; i++) {
+            float4 b = getPixel(i, v_in.uv);
+            if (compare(a, b) >= b.a) {
+                output = output | 1 << i;
+            }
+        }
+        return float4(output / 255.0, output / 255.0, output / 255.0, 1);
+    }
+}
+
+technique Draw
+{
+	pass
+	{
+		vertex_shader = VSDefault(v_in);
+		pixel_shader  = PSImageCompare(v_in);
+	}
+}
